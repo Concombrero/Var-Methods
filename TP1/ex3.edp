@@ -1,0 +1,10 @@
+real[int] xc=[1.0,0.0,-1.0,0.0,0.0,1.0], yc=[0.0,1.0,0.0,-1.0,0.0,0.0];
+int[int] nn=[10,10,10,20,20];
+border polygon(t=0,1;i)
+{
+x = xc[i]+t*(xc[i+1]-xc[i]);
+y = yc[i]+t*(yc[i+1]-yc[i]);
+label = i;
+};
+mesh Th= buildmesh(polygon(nn));
+plot(Th,wait=true);

@@ -1,0 +1,19 @@
+mesh Th=square(100,100);
+
+fespace Vh(Th, P1);
+
+Vh u,v;
+
+func f = 2*pi*pi * (sin(pi*x) * sin(pi*y));
+
+solve Poisson(u,v)=
+int2d(Th)(dx(u)*dx(v) + dy(u)*dy(v))
+-int2d(Th)(f*v) 
++ on(1,2,3,4, u=0);
+
+
+Vh uExact, diff;
+uExact = sin(pi*x)*sin(pi*y);
+diff = uExact - u;
+
+plot(diff, value=true, fill=true, cmm="Difference");

@@ -1,0 +1,32 @@
+// Rectangle 3*5
+mesh rectangle = square(3,5);
+
+// Create the four border using buildmesh
+border C1(t=0,1){x=t; y = 0;};
+border C2(t=0,1){x=1; y = t;};
+border C3(t=0,1){x=1-t; y = 1;};
+border C4(t=0,1){x=0; y = 1-t;};
+
+// Build the mesh using the four borders
+mesh Carre = buildmesh(C1(5) + C2(10) + C3(10) + C4(10));
+
+
+// Disk
+border diskBorder(t=0,2*pi){x=cos(t); y=sin(t);};
+mesh Disk = buildmesh(diskBorder(100));
+
+// Elipse
+int a = 1;
+int b = 2;
+border elipseBorder(t=0,2*pi){x=a*cos(t); y=b*sin(t);};
+mesh Elipse = buildmesh(elipseBorder(100));
+
+// Union of disk and rectangle
+mesh Union = Carre + Disk;
+
+
+border borderThor(t=0,2*pi){x=0.5*cos(t); y=0.5*sin(t);};
+
+mesh Thor = buildmesh(diskBorder(30) + borderThor(-30));
+
+plot(Thor);

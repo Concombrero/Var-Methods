@@ -1,0 +1,2 @@
+mesh Carre=square(3,5);
+plot(Carre);

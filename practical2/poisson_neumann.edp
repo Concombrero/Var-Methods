@@ -1,0 +1,33 @@
+border DiskBorder(t=0,2*pi){x=2*cos(t); y=2*sin(t);};
+mesh Disk=buildmesh(DiskBorder(100));
+plot(Disk, wait=1, cmm="Mesh of the disk");
+
+fespace Vh(Disk, P1);
+Vh u, v;
+
+// A small penalty term to make the singular matrix invertible 
+// for pure Neumann boundary conditions.
+real epsilon = 1e-6; 
+
+func f1 = 1.0;
+solve Poisson1Neumann(u, v) =
+        int2d(Disk)(dx(u)*dx(v) + dy(u)*dy(v) + epsilon*u*v)
+    - int2d(Disk)(f1*v); // + on(1, u=0);
+    
+plot(u, value=true, fill=true, wait=1, cmm="Solution of Poisson with homogeneous Neumann (f=1)");
+
+func f0 = 0.0;
+solve Poisson0Neumann(u, v) =
+        int2d(Disk)(dx(u)*dx(v) + dy(u)*dy(v) + epsilon*u*v)
+    - int2d(Disk)(f0*v); // + on(1, u=0);
+
+    
+plot(u, value=true, fill=true, wait=1, cmm="Solution of Poisson with zero source (f=0)");
+fespace Vh(Disk, P1);
+Vh u, v;
+real l, m; // l is the multiplier, m is the test function for the multiplier
+
+solve Poisson0NeumannLagrange([u, l], [v, m]) =
+        int2d(Disk)(dx(u)*dx(v) + dy(u)*dy(v))
+      + int2d(Disk)(l*v + m*u) // This enforces the zero-mean constraint
+    - int2d(Disk)(f0*v);

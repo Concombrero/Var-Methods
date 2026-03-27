@@ -1,0 +1,52 @@
+// Problem:
+// -div(kappa*grad(u)) = f      in Omega
+// u = g                        on Gamma_d (label 1)
+// dn(u) + a*u = b              on Gamma_r (label 2)
+
+func kappa = sin(x) + 1.5;
+func f = 1.0;
+func g = 2.0*cos(2*pi*x)*sin(pi*y);
+func b = 1.0*sin(2*pi*x)*cos(pi*y);
+real a = 1.0;
+
+int k = 30;
+border C1(t=0,1){x=t;   y=0;   label=1;}
+border C2(t=0,1){x=1;   y=t;   label=1;}
+border C3(t=0,1){x=1-t; y=1;   label=2;}
+border C4(t=0,1){x=0;   y=1-t; label=2;}
+
+mesh Th = buildmesh(C1(k) + C2(k) + C3(k) + C4(k));
+
+fespace Vh(Th, P1);
+Vh u, v;
+
+solve MixedBC(u, v) =
+        int2d(Th)(kappa*(dx(u)*dx(v) + dy(u)*dy(v)))
+    + int1d(Th, 2)(a*u*v)
+    - int2d(Th)(f*v)
+    - int1d(Th, 2)(b*v)
+    + on(1, u=g);
+
+plot(u, value=true, fill=true, wait=1, cmm="Solution u with mixed BC");
+
+// Second Problem
+border D1(t=0,1){x=t;   y=0;   label=11;}
+border D2(t=0,1){x=1;   y=t;   label=12;}
+border D3(t=0,1){x=1-t; y=1;   label=13;}
+border D4(t=0,1){x=0;   y=1-t; label=14;}
+
+mesh Thp = buildmesh(D1(k) + D2(k) + D3(k) + D4(k));
+
+int m = 4;
+int n = 4;
+
+func f2 = pi*pi*(n*n+m*m) * sin(m*pi*x+pi/4.) * sin(n*pi*y+pi/6.);
+
+fespace Vh2(Thp, P1, periodic=[[12,y],[14,y],[11,x],[13,x]]);
+Vh2 u2, v2;
+
+solve PeriodicProblem(u2, v2) =
+        int2d(Thp)(dx(u2)*dx(v2) + dy(u2)*dy(v2) + u2*v2)
+    - int2d(Thp)(f2*v2);
+
+plot(u2, value=true, fill=true, wait=1, cmm="Solution with periodic BC");
