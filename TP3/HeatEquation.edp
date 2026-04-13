@@ -59,7 +59,6 @@ Vh un, un1, v;
 un = u0h;
 
 problem HeatEquation(un1, v) =
-//droite
 int2d(Th)(un1*v)
 + int2d(Th)(nu*dt*theta*(dx(un1)*dx(v)+dy(un1)*dy(v)))
 //gauche
