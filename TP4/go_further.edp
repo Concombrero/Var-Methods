@@ -1,0 +1,34 @@
+border C1(t=0,5) {x=t; y=0; label=1;};
+border C2(t=0,1) {x=5; y=t; label=2;};
+border C3(t=0,5) {x=5-t; y=1; label=3;};
+border C4(t=0,1) {x=0; y=1-t; label=4;};
+
+mesh Th = buildmesh(C1(20)+C2(4)+C3(20)+C4(4));
+plot(Th, wait=true);
+
+real f1 = 0, f2 = -1;
+real g1 = 0, g2 = 0;
+
+real mu =5.0;
+real lambda = 10.0;
+
+fespace Vh(Th, P2);
+
+func real u1t0(){ 
+    return 0;
+}
+
+func real u2t0(){
+    return 0;
+}
+
+Vh u1, u2, v1, v2;
+
+problem elasticity([u1,u2], [v1,v2]) =
+    int2d(Th)((2.0*mu*(dx(u1)*dx(v1) + dy(u1)*dy(v1))))
+    + int2d(Th)(mu*(dy(u1)+dx(u2))*(dy(v1)+dx(v2)))
+    + int2d(Th)(lambda*(dx(u1)+dy(u2))*(dx(v1)+dy(v2)))
+    - int2d(Th)(f1*v1 + f2*v2)
+    - int1d(Th, 1, 2, 3)(g1*v1 + g2*v2)
+    + on(4, u1=0, u2=0);
+

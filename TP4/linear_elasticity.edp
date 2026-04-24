@@ -1,0 +1,56 @@
+verbosity = 0;
+
+border C1(t=0,5) {x=t; y=0; label=1;};
+border C2(t=0,1) {x=5; y=t; label=2;};
+border C3(t=0,5) {x=5-t; y=1; label=3;};
+border C4(t=0,1) {x=0; y=1-t; label=4;};
+
+mesh Th = buildmesh(C1(20)+C2(4)+C3(20)+C4(4));
+
+plot(Th, wait=true);
+
+real f1 = 0, f2 = -1;
+real g1 = 0, g2 = 0;
+
+real mu =5.0;
+real lambda = 10.0;
+
+
+fespace Vh(Th, P2);
+
+Vh u1, u2, v1, v2;
+
+problem elasticity([u1,u2], [v1,v2]) =
+    int2d(Th)( (2.0*mu*dx(u1) + lambda*(dx(u1)+dy(u2))) * dx(v1) )
+    + int2d(Th)( mu*(dy(u1)+dx(u2)) * dy(v1) )
+    + int2d(Th)( mu*(dy(u1)+dx(u2)) * dx(v2) )
+    + int2d(Th)( (2.0*mu*dy(u2) + lambda*(dx(u1)+dy(u2))) * dy(v2) )
+    - int2d(Th)( f1*v1 + f2*v2 )
+    - int1d(Th, 1, 2, 3)( g1*v1 + g2*v2 )
+    + on(4, u1=0, u2=0);
+
+elasticity;
+plot(Th, u1, wait=true, cmm="Displacement u1", value=true, fill=true);
+plot(Th, u2, wait=true, cmm="Displacement u2", value=true, fill=true);
+plot([u1,u2], coef=2.0, wait=true, cmm="Displacement field", value=true);
+
+real coef2 = 0.05;
+mesh Thnew = movemesh(Th, [x+u1*coef2, y+u2*coef2]);
+plot(Thnew, wait=true, cmm="Deformed mesh");
+
+
+
+fespace Sh(Th, P1); 
+
+// 2. On déclare nos variables dans cet espace et on y projette les formules
+Sh sigma11 = 2.0*mu*dx(u1) + lambda*(dx(u1)+dy(u2));
+Sh sigma22 = 2.0*mu*dy(u2) + lambda*(dx(u1)+dy(u2));
+Sh sigma12 = mu*(dy(u1)+dx(u2));
+
+// 3. On calcule la norme de Frobenius dans ce même espace
+Sh sigmaFrobenius = sqrt(sigma11^2 + sigma22^2 + 2.0*sigma12^2);
+
+// 4. On plot la variable "Sh" (FreeFEM sait parfaitement dessiner ça !)
+plot(sigmaFrobenius, wait=true, cmm="Frobenius norm of stress tensor", value=true, fill=true);
+
+

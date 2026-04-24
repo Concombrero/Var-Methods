@@ -1,0 +1,89 @@
+// Solve stokes equations 
+// -nu*Delta u + grad p = f
+// div u = 0
+// u = g on boundary
+
+// Define the domain and mesh
+verbosity = 0;
+
+border C1(t=0,1){x=t; y=0.2*sin(pi*t); label=1;}
+// border C1(t=0,1){x=t; y=0; label=1;}
+border C2(t=0,1){x=1; y=t; label=2;}
+border C3(t=0,1){x=1-t; y=1; label=3;}
+border C4(t=0,1){x=0; y=1-t; label=4;}
+
+
+//Obstacle in the cavity
+real R = 0.1; // radius of the obstacle
+border Obs(t=0, 2*pi){x=0.5 + R*cos(t); y=0.5 + R*sin(t); label=5;}
+
+mesh Th = buildmesh(C1(20) + C2(20) + C3(20) + C4(20) + Obs(-50)); // build the mesh with the defined borders
+
+real nu = 1000; // viscosity
+real f1 = 0, f2 = 0; // source terms
+// real g1 = 1, g2 = 0; // boundary conditions
+real pIn = 10.0; // inlet pressure
+real pOut = 0.0; // outlet pressure
+
+// Define finite element spaces is working P2/P1, P1b/P1 | P1/P1 and P1/P0 KO --> need to test whithout the LU solver and the penalization
+fespace Vh(Th, P2); // velocity space
+fespace Ph(Th, P1); // pressure space
+
+// Define trial and test functions
+Vh u1, u2, v1, v2; // velocity components and test functions
+Ph p, q; // pressure and test function
+
+
+func real g1() {
+    return x*x; // example boundary condition for u1
+}
+
+func real g2() {
+    return 0.0; // example boundary condition for u2
+}
+
+Vh g1h = g1(), g2h = g2();
+
+
+// Define the variational formulation
+problem Stokes([u1, u2, p], [v1, v2, q]) = // Add solver=LU to see the pb with the non-unicity of p
+    int2d(Th)(nu*(dx(u1)*dx(v1) + dy(u1)*dy(v1) + dx(u2)*dx(v2) + dy(u2)*dy(v2)))
+    - int2d(Th)(p*(dx(v1) + dy(v2)))
+    - int2d(Th)(f1*v1 + f2*v2)
+    - int2d(Th)((dx(u1) + dy(u2))*q)
+
+    // - int2d(Th)(1e-10*p*q) // Penalization for LU
+
+    // With  mu d_n u - p n = p_e n
+    /*
+    + int1d(Th, 2)(Pin*(v1*N.x + v2*N.y)) // inlet boundary condition
+    + int1d(Th, 4)(Pout*(v1*N.x + v2*N.y)) // outlet boundary condition
+    + on(1, 3, u1=0, u2=0); // other boundaries
+    */
+
+    + on(3, u1 = g1h, u2 = g2h) // Dirichlet boundary conditions
+    + on(1, 2, 4, 5, u1=0, u2=0); // Dirichlet boundary conditions
+
+Stokes; // Solve the problem
+Th = adaptmesh(Th, [u1, u2], err=0.01);
+plot(Th, wait=true, cmm="Adapted mesh");
+
+Stokes;
+
+// Plot the results
+plot(Th, u1, value=true, fill=true, cmm="u1", wait=true);
+plot(Th, u2, value=true, fill=true, cmm="u2", wait=true);
+
+plot([u1, u2], coef=1.0, wait=true, cmm="vector field", value=true);
+plot(Th, p, value=true, fill=true, wait=true, cmm="p");
+
+
+Vh psi, phi;
+
+problem Streamlines(psi, phi) =
+    int2d(Th)(dx(psi)*dx(phi) + dy(psi)*dy(phi))
+    - int2d(Th)((dx(u2) - dy(u1))*phi)
+    - int1d(Th, 1, 2, 3, 4, 5)(phi*(-u2*N.x + u1*N.y));
+Streamlines;
+
+plot(Th, psi, value=true, fill=true, cmm="Streamlines", wait=true);

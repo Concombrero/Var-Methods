@@ -1,73 +1,56 @@
-//Domain 
-border C1(t=0,2){x=t; y=0;};
-border C2(t=0,2){x=2; y=t;};
-border C3(t=0,2){x=2-t; y=2;};
-border C4(t=0,2){x=0; y=2-t;};
+// Rectangle [0,2]x[0,1] (1x2)
+border C1(t=0,1){x=2*t;   y=0;};
+border C2(t=0,1){x=2;     y=t;};
+border C3(t=0,1){x=2-2*t; y=1;};
+border C4(t=0,1){x=0;     y=1-t;};
 
-int nX = 40;
-
-mesh Th = buildmesh(C1(nX)+C2(nX)+C3(nX)+C4(nX));
-
+int n = 100;
+mesh Th = buildmesh(C1(n)+C2(n)+C3(n)+C4(n));
 fespace Vh(Th, P1);
 
 real nu = 0.1;
-real x1 = 0.5, y1=0.75;
-real x2 = 1.5, y2=0.25;
+real x1 = 0.5, y1 = 0.75;
+real x2 = 1.5, y2 = 0.25;
 
 func real f(){
     real resu;
-    real condition = sqrt((x-x1)^2+(y-y1)^2);
-    if (condition < 0.12){
-        resu = 10;
-    }
-    else  {
-        resu = 0;
-    }
+    resu = (sqrt((x-x1)^2 + (y-y1)^2) < 0.12) ? 10 : 0;
     return resu;
-}
-
+} 
 func real u0(){
     real resu;
-    real condition = sqrt((x-x2)^2+(y-y2)^2);
-    if (condition < 0.2){
-        resu = 100*(0.2 - condition);
-    }
-    else  {
-        resu = 0;
-    }
+    resu = (sqrt((x-x2)^2 + (y-y2)^2) < 0.2) ? 100*(0.2 - sqrt((x-x2)^2 + (y-y2)^2)) : 0;
     return resu;
 }
 
 Vh fh, u0h;
-
 fh = f();
 u0h = u0();
 
-// Time discretization
+plot(Th, cmm="Mesh", wait=1);
+plot(fh, value=1, fill=1, cmm="Source term f", wait=1);
+plot(u0h, value=1, fill=1, cmm="Initial condition u0", wait=1);
+
 real T = 5;
 real dt = 0.01;
-int nTime = T/dt;
-
-
-
-// Heat equation solver
+int Nt = T/dt;
 real theta = 0.5;
 
-Vh un, un1, v;
+Vh u, v;
+problem Heat(u, v) = 
+    int2d(Th)(u*v) 
+    + int2d(Th)(nu*dt*theta*(dx(u)*dx(v) + dy(u)*dy(v))) 
+    - int2d(Th)(u0h*v) 
+    - int2d(Th)(dt*fh*v)
+    + int2d(Th)(nu*dt*(1-theta)*(dx(u0h)*dx(v) + dy(u0h)*dy(v)))    
+    + on(1, 2, 3, 4, u=0);
 
-//Initialisation
-un = u0h;
-
-problem HeatEquation(un1, v) =
-int2d(Th)(un1*v)
-+ int2d(Th)(nu*dt*theta*(dx(un1)*dx(v)+dy(un1)*dy(v)))
-//gauche
-- int2d(Th)((dt*fh+un)*v)
-+ int2d(Th)(nu*dt*(1-theta)*(dx(un)*dx(v)+dy(un)*dy(v)))
-+ on(1, 2, 3, 4, un1=0);
-
-for(int n=0; n<nTime; n++){
-    HeatEquation;
-    un = un1;
-    plot(un, dim=3, wait=false, value=true, fill=true, cmm="Temperature distribution at time t="+(n+1)*dt);
+real t = 0;
+for (int i = 0; i <= Nt; i++){
+    t += dt;
+    Heat;
+    u0h = u;
+    Th = adaptmesh(Th, u, err=0.01);
+    plot(u, dim=3, value=1, fill=1, cmm="Temperature at t="+t, wait=false);
 }
+    
