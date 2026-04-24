@@ -19,7 +19,7 @@
   - `problem` or `solve`
   - `int2d`, `int1d`
   - `on(...)`
-- Use the exact notations of the worksheet whenever possible: `u`, `uh`, `v`, `V`, `Vh`, `f`, `kappa`, `Gamma_D`, `Gamma_N`, `theta`, etc.
+- Use the exact notations of the worksheet whenever possible: `u`, `uh`, `v`, `V`, `Vh`, `f`, `kappa`, `GammaD`, `GammaN`, `theta`, etc.
 - Test FreeFem++ code with:
   - `FreeFem++ -nw "path/to/file.edp"` for a non-graphical compile/run check
   - `FreeFem++ "path/to/file.edp"` for the normal graphical run
