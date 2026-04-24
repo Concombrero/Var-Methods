@@ -1,0 +1,68 @@
+verbosity = 0;
+
+border C1(t=0,1){x=5.0*t; y=-2.0; label=1;};
+border C2(t=0,1){x=5.0; y=-2.0+4.0*t; label=2;};
+border C3(t=0,1){x=5.0-5.0*t; y=2.0; label=3;};
+border C4(t=0,1){x=0.0; y=2.0-4.0*t; label=4;};
+
+mesh Th = buildmesh(C1(50) + C2(40) + C3(50) + C4(40));
+
+real b = 2.0;
+real c = 2.0;
+real kappa0 = 0.5;
+real alpha = (pi/5.0)^2 + (pi/2.0)^2;
+
+fespace Vh(Th, P1);
+Vh u, uVar, v, uExact, diff, fh, kappaVarh;
+
+func real uExactFunction(){
+    return c + sin(pi*x/5.0)*cos(pi*y/2.0);
+}
+
+func real fFunction(){
+    return b*c + (kappa0*alpha + b)*sin(pi*x/5.0)*cos(pi*y/2.0);
+}
+
+func real kappaPiecewise(){
+    real resu;
+    resu = ((x > 1.0) && (x < 4.0) && (y > -1.0) && (y < 1.0)) ? 50.0 : 0.5;
+    return resu;
+}
+
+uExact = uExactFunction();
+fh = fFunction();
+
+solve ReactionDiffusion(u, v) =
+    int2d(Th)(kappa0*(dx(u)*dx(v) + dy(u)*dy(v)) + b*u*v)
+  - int2d(Th)(fh*v)
+  + on(2, 4, u=c);
+
+diff = uExact - u;
+
+real l2Error = sqrt(int2d(Th)(diff^2));
+real h1SemiError = sqrt(int2d(Th)(dx(diff)^2 + dy(diff)^2));
+real h1Error = sqrt(int2d(Th)(diff^2 + dx(diff)^2 + dy(diff)^2));
+
+cout << "Constant kappa case" << endl;
+cout << "L2 error = " << l2Error << endl;
+cout << "H1 seminorm error = " << h1SemiError << endl;
+cout << "H1 error = " << h1Error << endl;
+
+kappaVarh = kappaPiecewise();
+
+problem ReactionDiffusionVar(uVar, v) =
+    int2d(Th)(kappaVarh*(dx(uVar)*dx(v) + dy(uVar)*dy(v)) + b*uVar*v)
+  - int2d(Th)(fh*v)
+  + on(2, 4, uVar=c);
+
+ReactionDiffusionVar;
+
+cout << "Variable kappa case" << endl;
+cout << "Integral of uVar = " << int2d(Th)(uVar) << endl;
+cout << "Integral of kappa*uVar = " << int2d(Th)(kappaVarh*uVar) << endl;
+
+plot(Th, wait=true, cmm="Mesh");
+plot(u, value=true, fill=true, wait=true, cmm="Approximate solution (constant kappa)");
+plot(diff, value=true, fill=true, wait=true, cmm="Difference uExact - u");
+plot(kappaVarh, value=true, fill=true, wait=true, cmm="Piecewise kappa");
+plot(uVar, value=true, fill=true, wait=true, cmm="Approximate solution (variable kappa)");

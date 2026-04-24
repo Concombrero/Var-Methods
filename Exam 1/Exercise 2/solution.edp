@@ -1,0 +1,69 @@
+verbosity = 0;
+
+border C1(t=0,1){x=t; y=0; label=1;};
+border C2(t=0,1){x=1; y=t; label=2;};
+border C3(t=0,1){x=1-t; y=1; label=3;};
+border C4(t=0,1){x=0; y=1-t; label=4;};
+
+real d = 0.12;
+border D1(t=0,1){x=0.5 + d*t; y=0.5 + d - d*t; label=5;};
+border D2(t=0,1){x=0.5 + d - d*t; y=0.5 - d*t; label=6;};
+border D3(t=0,1){x=0.5 - d*t; y=0.5 - d + d*t; label=7;};
+border D4(t=0,1){x=0.5 - d + d*t; y=0.5 + d*t; label=8;};
+
+mesh Th = buildmesh(C1(50) + C2(50) + C3(50) + C4(50) + D1(15) + D2(15) + D3(15) + D4(15));
+
+fespace Vh(Th, P1);
+Vh psi, phi, psiVertical, phiVertical;
+
+real vx = 1.0;
+real vy = 0.0;
+
+problem Potential(psi, phi) =
+    int2d(Th)(dx(psi)*dx(phi) + dy(psi)*dy(phi))
+  - int1d(Th, 1, 2, 3, 4)((-vy*N.x + vx*N.y)*phi)
+  + on(5, 6, 7, 8, psi=0);
+
+Potential;
+
+cout << "Diamond obstacle, horizontal flow" << endl;
+cout << "Energy = " << int2d(Th)(dx(psi)^2 + dy(psi)^2) << endl;
+
+vx = 0.0;
+vy = 1.0;
+
+problem PotentialVertical(psiVertical, phiVertical) =
+    int2d(Th)(dx(psiVertical)*dx(phiVertical) + dy(psiVertical)*dy(phiVertical))
+  - int1d(Th, 1, 2, 3, 4)((-vy*N.x + vx*N.y)*phiVertical)
+  + on(5, 6, 7, 8, psiVertical=0);
+
+PotentialVertical;
+
+cout << "Diamond obstacle, vertical flow" << endl;
+cout << "Energy = " << int2d(Th)(dx(psiVertical)^2 + dy(psiVertical)^2) << endl;
+
+real r = 0.15;
+border Obs(t=0, 2*pi){x=0.5 + r*cos(t); y=0.5 + r*sin(t); label=5;};
+mesh ThCircle = buildmesh(C1(50) + C2(50) + C3(50) + C4(50) + Obs(-40));
+
+fespace Wh(ThCircle, P1);
+Wh psiCircle, phiCircle;
+
+vx = 1.0;
+vy = 0.0;
+
+problem PotentialCircle(psiCircle, phiCircle) =
+    int2d(ThCircle)(dx(psiCircle)*dx(phiCircle) + dy(psiCircle)*dy(phiCircle))
+  - int1d(ThCircle, 1, 2, 3, 4)((-vy*N.x + vx*N.y)*phiCircle)
+  + on(5, psiCircle=0);
+
+PotentialCircle;
+
+cout << "Circular obstacle, horizontal flow" << endl;
+cout << "Energy = " << int2d(ThCircle)(dx(psiCircle)^2 + dy(psiCircle)^2) << endl;
+
+plot(Th, wait=true, cmm="Mesh with diamond obstacle");
+plot(psi, value=true, fill=false, wait=true, cmm="Stream function, diamond, horizontal flow");
+plot(psiVertical, value=true, fill=false, wait=true, cmm="Stream function, diamond, vertical flow");
+plot(ThCircle, wait=true, cmm="Mesh with circular obstacle");
+plot(psiCircle, value=true, fill=false, wait=true, cmm="Stream function, circular obstacle, horizontal flow");

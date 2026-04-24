@@ -6,8 +6,8 @@
 // Define the domain and mesh
 verbosity = 0;
 
-border C1(t=0,1){x=t; y=0.2*sin(pi*t); label=1;}
-// border C1(t=0,1){x=t; y=0; label=1;}
+//border C1(t=0,1){x=t; y=0.2*sin(pi*t); label=1;}
+border C1(t=0,1){x=t; y=0; label=1;}
 border C2(t=0,1){x=1; y=t; label=2;}
 border C3(t=0,1){x=1-t; y=1; label=3;}
 border C4(t=0,1){x=0; y=1-t; label=4;}
@@ -15,9 +15,9 @@ border C4(t=0,1){x=0; y=1-t; label=4;}
 
 //Obstacle in the cavity
 real R = 0.1; // radius of the obstacle
-border Obs(t=0, 2*pi){x=0.5 + R*cos(t); y=0.5 + R*sin(t); label=5;}
+//border Obs(t=0, 2*pi){x=0.5 + R*cos(t); y=0.5 + R*sin(t); label=5;}
 
-mesh Th = buildmesh(C1(20) + C2(20) + C3(20) + C4(20) + Obs(-50)); // build the mesh with the defined borders
+mesh Th = buildmesh(C1(20) + C2(20) + C3(20) + C4(20)); // build the mesh with the defined borders
 
 real nu = 1000; // viscosity
 real f1 = 0, f2 = 0; // source terms
@@ -35,11 +35,11 @@ Ph p, q; // pressure and test function
 
 
 func real g1() {
-    return x*x; // example boundary condition for u1
+    return 1; // example boundary condition for u1
 }
 
 func real g2() {
-    return 0.0; // example boundary condition for u2
+    return 0; // example boundary condition for u2
 }
 
 Vh g1h = g1(), g2h = g2();
@@ -52,7 +52,7 @@ problem Stokes([u1, u2, p], [v1, v2, q]) = // Add solver=LU to see the pb with t
     - int2d(Th)(f1*v1 + f2*v2)
     - int2d(Th)((dx(u1) + dy(u2))*q)
 
-    // - int2d(Th)(1e-10*p*q) // Penalization for LU
+    - int2d(Th)(1e-10*p*q) // Penalization for LU
 
     // With  mu d_n u - p n = p_e n
     /*
