@@ -1,0 +1,122 @@
+verbosity = 0;
+
+real L = 10.0;
+real T = 5.0;
+int nTimeSteps = 100;
+real dt = T/nTimeSteps;
+real dt2 = dt*dt;
+real cWave = 10.0;
+
+real xc = -L/2.0;
+real yc = -L/2.0;
+
+func real u0Function(){
+    real rr;
+    rr = sqrt((x-xc)^2 + (y-yc)^2);
+    return (rr < 1.0) ? 1.0 - rr : 0.0;
+}
+
+int n = 40;
+border C1(t=0,1){x=-L + 2.0*L*t; y=-L; label=1;};
+border C2(t=0,1){x=L; y=-L + 2.0*L*t; label=2;};
+border C3(t=0,1){x=L - 2.0*L*t; y=L; label=3;};
+border C4(t=0,1){x=-L; y=L - 2.0*L*t; label=4;};
+
+mesh Th = buildmesh(C1(n) + C2(n) + C3(n) + C4(n));
+
+fespace Vh(Th, P1);
+Vh uPrev, uCurr, uNext, v, u0h;
+
+u0h = u0Function();
+uPrev = u0h;
+uCurr = u0h;
+
+real[int] isovec(21);
+real isomin = -0.25;
+real isomax = 0.15;
+for (int i = 0; i < isovec.n; i++)
+    isovec[i] = isomin + (isomax - isomin)*i/(isovec.n - 1);
+
+problem Wave(uNext, v) =
+    int2d(Th)(uNext*v/dt2)
+  + int2d(Th)(0.5*cWave*(dx(uNext)*dx(v) + dy(uNext)*dy(v)))
+  - int2d(Th)((2.0*uCurr - uPrev)*v/dt2)
+  + int2d(Th)(0.5*cWave*(dx(uPrev)*dx(v) + dy(uPrev)*dy(v)))
+  + on(1, 2, 3, 4, uNext=0);
+
+for (int it = 0; it < nTimeSteps - 1; it++) {
+    Wave;
+    uPrev = uCurr;
+    uCurr = uNext;
+
+    if (((it + 2) % 5 == 0) || (it == nTimeSteps - 2))
+        plot(uCurr, dim=2, fill=true, value=true, viso=isovec, wait=false, cmm="Wave without PML");
+}
+
+
+real a = 3.0;
+real LPML = L + a;
+int nPML = 50;
+border D1(t=0,1){x=-LPML + 2.0*LPML*t; y=-LPML; label=1;};
+border D2(t=0,1){x=LPML; y=-LPML + 2.0*LPML*t; label=2;};
+border D3(t=0,1){x=LPML - 2.0*LPML*t; y=LPML; label=3;};
+border D4(t=0,1){x=-LPML; y=LPML - 2.0*LPML*t; label=4;};
+
+mesh ThPML = buildmesh(D1(nPML) + D2(nPML) + D3(nPML) + D4(nPML));
+
+fespace Wh(ThPML, P1);
+Wh uPMLPrev, uPMLCurr, uPMLNext, w, u0PML;
+Wh sigmaxh, sigmayh, sigmaSumh, phi1Prev, phi1Curr, phi2Prev, phi2Curr, stripIndicatorPML, physicalIndicatorPML;
+
+func real sigmaXFunction(){
+    real s;
+    s = abs(x) - L;
+    return (abs(x) <= L) ? 0.0 : 20.0*(s/a)^2;
+}
+
+func real sigmaYFunction(){
+    real s;
+    s = abs(y) - L;
+    return (abs(y) <= L) ? 0.0 : 20.0*(s/a)^2;
+}
+
+u0PML = u0Function();
+uPMLPrev = u0PML;
+uPMLCurr = u0PML;
+
+sigmaxh = sigmaXFunction();
+sigmayh = sigmaYFunction();
+sigmaSumh = sigmaxh + sigmayh;
+phi1Prev = 0.0;
+phi2Prev = 0.0;
+
+phi1Curr = (phi1Prev + dt*cWave*(sigmayh - sigmaxh)*dx(uPMLCurr)) / (1.0 + dt*sigmaxh);
+phi2Curr = (phi2Prev - dt*cWave*(sigmayh - sigmaxh)*dy(uPMLCurr)) / (1.0 + dt*sigmayh);
+
+plot(sigmaSumh, value=true, fill=true, wait=true, cmm="sigma_x + sigma_y");
+
+problem WavePML(uPMLNext, w) =
+    int2d(ThPML)(uPMLNext*w/dt2)
+  + int2d(ThPML)(0.5*cWave*(dx(uPMLNext)*dx(w) + dy(uPMLNext)*dy(w)))
+  + int2d(ThPML)((((sigmaxh + sigmayh)/(2.0*dt)) + 0.5*sigmaxh*sigmayh)*uPMLNext*w)
+  - int2d(ThPML)((2.0*uPMLCurr - uPMLPrev)*w/dt2)
+  + int2d(ThPML)(0.5*cWave*(dx(uPMLPrev)*dx(w) + dy(uPMLPrev)*dy(w)))
+  - int2d(ThPML)(((sigmaxh + sigmayh)/(2.0*dt))*uPMLPrev*w)
+  + int2d(ThPML)(0.5*sigmaxh*sigmayh*uPMLPrev*w)
+  - int2d(ThPML)((dx(phi1Curr) + dy(phi2Curr))*w)
+  + on(1, 2, 3, 4, uPMLNext=0);
+
+for (int it = 0; it < nTimeSteps - 1; it++) {
+    WavePML;
+
+    uPMLPrev = uPMLCurr;
+    uPMLCurr = uPMLNext;
+    phi1Prev = phi1Curr;
+    phi2Prev = phi2Curr;
+
+    phi1Curr = (phi1Prev + dt*cWave*(sigmayh - sigmaxh)*dx(uPMLCurr)) / (1.0 + dt*sigmaxh);
+    phi2Curr = (phi2Prev - dt*cWave*(sigmayh - sigmaxh)*dy(uPMLCurr)) / (1.0 + dt*sigmayh);
+
+    if (((it + 2) % 5 == 0) || (it == nTimeSteps - 2))
+        plot(uPMLCurr, dim=2, fill=true, value=true, viso=isovec, wait=false, cmm="Wave with PML");
+}

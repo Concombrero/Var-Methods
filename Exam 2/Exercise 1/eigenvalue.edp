@@ -1,0 +1,45 @@
+verbosity = 0;
+
+mesh Th = square(60, 20, [3.0*x, y - 0.5]);
+
+fespace Vh(Th, P1);
+Vh u, v, exactMode, approxMode, diff;
+
+varf a(u, v) =
+    int2d(Th)(dx(u)*dx(v) + dy(u)*dy(v) + u*v)
+  + on(2, 4, u=0.0);
+
+matrix A = a(Vh, Vh);
+
+varf b(u, v) = int2d(Th)(u*v);
+matrix B = b(Vh, Vh);
+
+int nev = 5;
+real[int] eigenvalues(nev);
+Vh[int] eigenvectors(nev);
+
+EigenValue(A, B, nev=nev, sym=true, sigma=0.0, value=eigenvalues, vector=eigenvectors);
+
+
+int[int] mx = [1, 2, 3, 1, 2];
+int[int] ny = [0, 0, 0, 1, 1];
+
+for (int i = 0; i < nev; i++) {
+    real exactEigenvalue = 1.0 + (mx[i]*pi/3.0)^2 + (ny[i]*pi)^2;
+
+    approxMode = eigenvectors[i];
+    approxMode = approxMode / sqrt(int2d(Th)(approxMode^2));
+
+    exactMode = sin(mx[i]*pi*x/3.0) * cos(ny[i]*pi*(y + 0.5));
+    exactMode = exactMode / sqrt(int2d(Th)(exactMode^2));
+
+    if (int2d(Th)(approxMode*exactMode) < 0.0)
+        approxMode = -approxMode;
+
+    diff = exactMode - approxMode;
+
+    cout << "Approximate eigenvalue = " << eigenvalues[i] << endl;
+    cout << "Exact eigenvalue = " << exactEigenvalue << endl;
+    cout << "Absolute error = " << abs(eigenvalues[i] - exactEigenvalue) << endl;
+    cout << "L2 eigenvector error = " << sqrt(int2d(Th)(diff^2)) << endl;
+}
