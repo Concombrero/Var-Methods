@@ -1,0 +1,114 @@
+verbosity = 0;
+
+real xmin = -1.5;
+real xmax = 1.5;
+real ymin = -1.0;
+real ymax = 1.0;
+
+real Tc = 343.0;
+real Te = 293.0;
+real h = 1.0;
+real theta = 0.5;
+int drawPlots = 1;
+
+real alpha1 = 2000.0;
+real alpha2 = 2000.0;
+real alpha3 = 2000.0;
+real alpha4 = 2000.0;
+real alpha5 = 2000.0;
+real alpha6 = 2000.0;
+
+real R = 0.05;
+real Rsq = R*R;
+
+func real kappaFunction(){
+    real resu;
+    resu = ((abs(x) <= 0.75) && (abs(y) <= 0.5)) ? 1.0 : 10.0;
+    return resu;
+}
+
+func real chiSFunction(){
+    return ((abs(x) <= 0.75) && (abs(y) <= 0.5)) ? 1.0 : 0.0;
+}
+
+func real sourceFunction(){
+    real resu;
+    resu = 0.0;
+    resu += alpha1*(((x+1.0)^2 + (y+0.75)^2 <= Rsq) ? 1.0 : 0.0);
+    resu += alpha2*(((x    )^2 + (y+0.75)^2 <= Rsq) ? 1.0 : 0.0);
+    resu += alpha3*(((x-1.0)^2 + (y+0.75)^2 <= Rsq) ? 1.0 : 0.0);
+    resu += alpha4*(((x+1.0)^2 + (y-0.75)^2 <= Rsq) ? 1.0 : 0.0);
+    resu += alpha5*(((x    )^2 + (y-0.75)^2 <= Rsq) ? 1.0 : 0.0);
+    resu += alpha6*(((x-1.0)^2 + (y-0.75)^2 <= Rsq) ? 1.0 : 0.0);
+    return resu;
+}
+
+border C1(t=0,1){x=xmin + (xmax-xmin)*t; y=ymin; label=1;};
+border C2(t=0,1){x=xmax; y=ymin + (ymax-ymin)*t; label=2;};
+border C3(t=0,1){x=xmax - (xmax-xmin)*t; y=ymax; label=3;};
+border C4(t=0,1){x=xmin; y=ymax - (ymax-ymin)*t; label=4;};
+
+mesh Th = buildmesh(C1(60) + C2(40) + C3(60) + C4(40));
+
+fespace Vh(Th, P1);
+Vh T, v, Told, Tnew, kappaH, chiSH, fh;
+
+kappaH = kappaFunction();
+chiSH = chiSFunction();
+fh = sourceFunction();
+
+problem Stationary(T, v) =
+    int2d(Th)(kappaH*(dx(T)*dx(v) + dy(T)*dy(v)))
+  + int1d(Th, 1)(h*kappaH*T*v)
+  - int2d(Th)(fh*v)
+  - int1d(Th, 1)(h*kappaH*Te*v)
+  + on(3, T=Tc);
+
+Stationary;
+
+real areaOmega = int2d(Th)(1.0);
+real areaS = int2d(Th)(chiSH);
+real meanOmega = int2d(Th)(T)/areaOmega;
+real meanS = int2d(Th)(chiSH*T)/areaS;
+
+cout << "Stationary direct problem" << endl;
+cout << "Mean temperature in Omega = " << meanOmega << endl;
+cout << "Mean temperature in S = " << meanS << endl;
+cout << "Temperature at center = " << T(0.0, 0.0) << endl;
+
+if (true) {
+    plot(fh, value=true, fill=true, wait=false, cmm="Source term f");
+    plot(kappaH, value=true, fill=true, wait=false, cmm="Diffusion coefficient k");
+    plot(T, value=true, fill=true, wait=false, cmm="Stationary temperature");
+}
+
+real Tf = 5.0;
+real dt = 0.05;
+int nTimeSteps = Tf/dt;
+
+Told = Te;
+
+problem Heat(Tnew, v) =
+    int2d(Th)(Tnew*v)
+  + int2d(Th)(theta*dt*kappaH*(dx(Tnew)*dx(v) + dy(Tnew)*dy(v)))
+  + int1d(Th, 1)(theta*dt*h*kappaH*Tnew*v)
+  - int2d(Th)(Told*v)
+  - int2d(Th)(dt*fh*v)
+  + int2d(Th)((1.0-theta)*dt*kappaH*(dx(Told)*dx(v) + dy(Told)*dy(v)))
+  + int1d(Th, 1)((1.0-theta)*dt*h*kappaH*Told*v)
+  - int1d(Th, 1)(dt*h*kappaH*Te*v)
+  + on(3, Tnew=Tc);
+
+for (int it = 0; it < nTimeSteps; it++) {
+    Heat;
+    Told = Tnew;
+
+    if (false && (((it + 1) % 20 == 0) || (it == nTimeSteps - 1)))
+        plot(Told, value=true, fill=true, wait=false, cmm="Warm-up temperature");
+}
+
+real meanFinal = int2d(Th)(chiSH*Told)/areaS;
+
+cout << "Transient warm-up" << endl;
+cout << "Final mean temperature in S = " << meanFinal << endl;
+cout << "Final temperature at center = " << Told(0.0, 0.0) << endl;

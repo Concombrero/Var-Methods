@@ -1,0 +1,81 @@
+verbosity = 0;
+
+real xmin = -1.5;
+real xmax = 1.5;
+real ymin = -1.0;
+real ymax = 1.0;
+
+border C1(t=0,1){x=xmin + (xmax-xmin)*t; y=ymin; label=1;};
+border C2(t=0,1){x=xmax; y=ymin + (ymax-ymin)*t; label=2;};
+border C3(t=0,1){x=xmax - (xmax-xmin)*t; y=ymax; label=3;};
+border C4(t=0,1){x=xmin; y=ymax - (ymax-ymin)*t; label=4;};
+
+mesh Th = buildmesh(C1(60) + C2(40) + C3(60) + C4(40));
+
+real Tc = 343.0;
+real Te = 293.0;
+real h = 1.0;
+
+real alpha1 = 2000.0;
+real alpha2 = 2000.0;
+real alpha3 = 2000.0;
+real alpha4 = 2000.0;
+real alpha5 = 2000.0;
+real alpha6 = 2000.0;
+
+real R = 0.05;
+
+func real kappa(){
+    real resu;
+    if(abs(x) <= 0.75 && abs(y) <= 0.5)
+        resu = 1.0;
+    else
+        resu = 10.0;
+    return resu;
+}
+
+func real f(){
+    real resu;
+    resu = 0.0;
+    if((x+1.0)^2 + (y+0.75)^2 <= R*R)
+        resu += alpha1;
+    if((x    )^2 + (y+0.75)^2 <= R*R)
+        resu += alpha2;
+    if((x-1.0)^2 + (y+0.75)^2 <= R*R)
+        resu += alpha3;
+    if((x+1.0)^2 + (y-0.75)^2 <= R*R)
+        resu += alpha4;
+    if((x    )^2 + (y-0.75)^2 <= R*R)
+        resu += alpha5;
+    if((x-1.0)^2 + (y-0.75)^2 <= R*R)
+        resu += alpha6;
+    return resu;
+}
+
+fespace Vh(Th, P2);
+Vh Told, Tnew, v, kappaH, fh;
+kappaH = kappa();
+fh = f();
+Told = Te;
+
+real T = 2;
+int nTimeSteps = 2000;
+real dt = T/nTimeSteps;
+real teta = 0.5;
+
+problem WarmUp(Tnew, v) =
+    int2d(Th)(1/dt * (Tnew * v))
+    - int2d(Th)(1/dt * (Told * v))
+    + int2d(Th)(kappaH*teta*(dx(Tnew)*dx(v) + dy(Tnew)*dy(v)))
+    + int1d(Th, 1)(kappaH*teta*h*Tnew*v)
+    - int1d(Th, 1)(kappaH*teta*h*Te*v)
+    + int2d(Th)(kappaH*(1-teta)*(dx(Told)*dx(v) + dy(Told)*dy(v)))
+    + int1d(Th, 1)(kappaH*(1-teta)*h*Told*v)
+    - int1d(Th, 1)(kappaH*(1-teta)*h*Te*v)
+    - int2d(Th)(fh*v);
+
+for (int it = 0; it < nTimeSteps; it++) {
+    WarmUp;
+    Told = Tnew;
+    plot(Told, fill=true, dim=3, cmm="Warm-up temperature", wait=0.01);
+}
